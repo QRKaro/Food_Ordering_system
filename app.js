@@ -164,8 +164,10 @@ async function showView(viewId) {
                 renderAdminOrders();
             }
         }, 5000);
-    } else {
+    } else if (viewId === 'landing-view') {
         adminFab.style.display = 'flex';
+    } else {
+        adminFab.style.display = 'none';
     }
 
     if (viewId === 'menu-view') renderCustomerMenu();
@@ -183,6 +185,13 @@ function setupEventListeners() {
         document.getElementById('display-table').textContent = state.currentCustomer.table;
 
         showView('menu-view');
+    });
+
+    // Go Back to Landing
+    document.getElementById('back-to-landing-btn').addEventListener('click', () => {
+        state.cart = [];
+        updateCartBadge();
+        showView('landing-view');
     });
 
     // Cart Navigation

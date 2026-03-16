@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Menu Order</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app-container">
+        <!-- Landing View -->
+        <section id="landing-view" class="view active">
+            <div class="landing-content">
+                <div class="logo-container">
+                    <i class="fa-solid fa-utensils logo-icon"></i>
+                    <h1>BiteStyle</h1>
+                    <p>Scan, Order, Enjoy.</p>
+                </div>
+                <form id="login-form">
+                    <div class="input-group">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input type="number" id="table-num" placeholder="Table Number" required min="1">
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="customer-name" placeholder="Your Name" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">View Menu</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Menu View -->
+        <section id="menu-view" class="view">
+            <header class="menu-header">
+                <div class="header-left">
+                    <i class="fa-solid fa-utensils header-logo"></i>
+                    <span class="header-title">BiteStyle</span>
+                </div>
+                <div class="header-right">
+                    <button id="cart-btn" class="icon-btn">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span id="cart-badge" class="badge">0</span>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="greeting-bar">
+                <p>Hello, <span id="display-name">Guest</span>! Table: <span id="display-table">1</span></p>
+            </div>
+
+            <nav class="category-nav" id="category-nav">
+                <!-- Categories populated by JS -->
+            </nav>
+
+            <div class="menu-container" id="menu-items-container">
+                <!-- Items populated by JS -->
+            </div>
+        </section>
+
+        <!-- Cart Modal -->
+        <div id="cart-modal" class="modal">
+            <div class="modal-content cart-content">
+                <div class="modal-header">
+                    <h2>Your Order</h2>
+                    <button class="close-btn" id="close-cart"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="cart-items" id="cart-items-container">
+                    <!-- Cart items populated by JS -->
+                </div>
+                <div class="cart-footer">
+                    <div class="cart-total">
+                        <span>Total</span>
+                        <span id="cart-total-price">$0.00</span>
+                    </div>
+                    <button id="checkout-btn" class="btn btn-primary btn-block">Place Order</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Confirmation View -->
+        <section id="confirmation-view" class="view">
+            <div class="confirmation-content">
+                <div class="success-icon">
+                    <i class="fa-solid fa-check-circle"></i>
+                </div>
+                <h2>Order Placed!</h2>
+                <p>Your order <strong id="confirm-order-id">#1001</strong> has been received and is being prepared.</p>
+                
+                <div class="order-summary-box">
+                    <h3>Order Summary</h3>
+                    <div id="confirm-items-list"></div>
+                    <div class="confirm-total">Total: <span id="confirm-total-price"></span></div>
+                </div>
+
+                <div class="order-status-banner">
+                    <p>Current Status: <span class="status-badge status-pending">Pending</span></p>
+                </div>
+
+                <button id="new-order-btn" class="btn btn-outline btn-block mt-4">Order More Items</button>
+            </div>
+        </section>
+
+        <!-- Admin Access Button -->
+        <button id="admin-access-btn" class="admin-fab" title="Admin Panel">
+            <i class="fa-solid fa-lock"></i>
+        </button>
+
+        <!-- Admin Login Modal -->
+        <div id="admin-login-modal" class="modal">
+            <div class="modal-content mini-modal">
+                <div class="modal-header">
+                    <h2>Admin Access</h2>
+                    <button class="close-btn" id="close-admin-login"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="admin-login-form">
+                    <div class="input-group">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="admin-passcode" placeholder="Enter Passcode" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard View -->
+        <section id="admin-dashboard-view" class="view admin-layout">
+            <aside class="admin-sidebar" id="admin-sidebar">
+                <div class="admin-logo">
+                    <i class="fa-solid fa-shield-halved"></i> Admin
+                </div>
+                <nav class="admin-nav">
+                    <button class="admin-nav-item active" data-tab="orders"><i class="fa-solid fa-list-check"></i> Orders</button>
+                    <button class="admin-nav-item" data-tab="menu"><i class="fa-solid fa-burger"></i> Menu</button>
+                    <button class="admin-nav-item" data-tab="categories"><i class="fa-solid fa-layer-group"></i> Categories</button>
+                    <button class="admin-nav-item" data-tab="settings"><i class="fa-solid fa-gear"></i> Settings</button>
+                </nav>
+                <button id="admin-logout-btn" class="btn btn-outline btn-block mt-auto"><i class="fa-solid fa-right-from-bracket"></i> Exit</button>
+            </aside>
+            <main class="admin-main">
+                <!-- Mobile Navbar -->
+                <header class="admin-mobile-header">
+                    <button id="admin-menu-toggle"><i class="fa-solid fa-bars"></i></button>
+                    <h2>Dashboard</h2>
+                </header>
+
+                <div class="admin-content">
+                    <!-- Orders Tab -->
+                    <div id="tab-orders" class="admin-tab active">
+                        <div class="tab-header">
+                            <h2>Live Orders</h2>
+                            <button class="btn btn-outline btn-sm" id="refresh-orders"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                        </div>
+                        <div class="orders-grid" id="admin-orders-container">
+                            <!-- Orders populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Menu Tab -->
+                    <div id="tab-menu" class="admin-tab">
+                        <div class="tab-header">
+                            <h2>Menu Management</h2>
+                            <button class="btn btn-primary btn-sm" id="add-item-btn"><i class="fa-solid fa-plus"></i> Add Item</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-menu-table-body">
+                                    <!-- Items by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Categories Tab -->
+                    <div id="tab-categories" class="admin-tab">
+                        <div class="tab-header">
+                            <h2>Categories Management</h2>
+                            <button class="btn btn-primary btn-sm" id="add-category-btn"><i class="fa-solid fa-plus"></i> Add Category</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category Name</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-categories-table-body">
+                                    <!-- Categories by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div id="tab-settings" class="admin-tab">
+                        <div class="tab-header">
+                            <h2>Settings</h2>
+                        </div>
+                        <div class="settings-card">
+                            <h3>Change Passcode</h3>
+                            <form id="change-passcode-form">
+                                <div class="input-group">
+                                    <input type="password" id="old-passcode" placeholder="Current Passcode" required>
+                                </div>
+                                <div class="input-group">
+                                    <input type="password" id="new-passcode" placeholder="New Passcode" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Update Passcode</button>
+                            </form>
+                        </div>
+                        <div class="settings-card mt-4">
+                            <h3>Data Management</h3>
+                            <button id="reset-data-btn" class="btn btn-danger">Factory Reset (Erase All Data)</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Admin Action Modals -->
+        
+        <!-- Add/Edit Item Modal -->
+        <div id="item-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="item-modal-title">Add Menu Item</h2>
+                    <button class="close-btn" id="close-item-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="item-form">
+                    <input type="hidden" id="item-id">
+                    <div class="input-group">
+                        <label>Item Name</label>
+                        <input type="text" id="item-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Category</label>
+                        <select id="item-category" required></select>
+                    </div>
+                    <div class="input-group">
+                        <label>Price ($)</label>
+                        <input type="number" id="item-price" step="0.01" min="0" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Image URL</label>
+                        <input type="url" id="item-image" placeholder="https://..." required>
+                    </div>
+                    <div class="selected-image-preview">
+                        <img id="item-image-preview" src="" style="display:none; width: 100px; border-radius: 8px; margin-top: 10px;">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block mt-4">Save Item</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add/Edit Category Modal -->
+        <div id="category-modal" class="modal">
+            <div class="modal-content mini-modal">
+                <div class="modal-header">
+                    <h2 id="category-modal-title">Add Category</h2>
+                    <button class="close-btn" id="close-category-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form id="category-form">
+                    <input type="hidden" id="category-old-name">
+                    <div class="input-group">
+                        <label>Category Name</label>
+                        <input type="text" id="category-name" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block mt-4">Save Category</button>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

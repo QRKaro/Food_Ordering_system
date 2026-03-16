@@ -1,18 +1,14 @@
-// Default Data Structure
-const defaultCategories = [
-    { id: 'cat-1', name: 'Starters' },
-    { id: 'cat-2', name: 'Main Course' },
-    { id: 'cat-3', name: 'Beverages' },
-    { id: 'cat-4', name: 'Desserts' }
-];
+// --- Supabase Setup ---
+const SUPABASE_URL = 'https://bxjfnnminlspnpnvctmz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ciYgm78MleXGqStaM6Nx5Q_XxMabbbg';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const defaultMenu = [
-    { id: 'item-1', name: 'Garlic Bread', category: 'cat-1', price: 4.99, image: 'https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?auto=format&fit=crop&w=300&q=80' },
-    { id: 'item-2', name: 'Bruschetta', category: 'cat-1', price: 6.50, image: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?auto=format&fit=crop&w=300&q=80' },
-    { id: 'item-3', name: 'Grilled Salmon', category: 'cat-2', price: 18.99, image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=300&q=80' },
-    { id: 'item-4', name: 'Margherita Pizza', category: 'cat-2', price: 12.99, image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=300&q=80' },
-    { id: 'item-5', name: 'Iced Latte', category: 'cat-3', price: 3.99, image: 'https://images.unsplash.com/photo-1517701550927-30cfcb64cf45?auto=format&fit=crop&w=300&q=80' },
-    { id: 'item-6', name: 'Chocolate Lava Cake', category: 'cat-4', price: 7.99, image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=300&q=80' }
+// Default Data (Used as fallback if DB is completely empty and no records exist)
+const defaultCategories = [
+    { name: 'Starters' },
+    { name: 'Main Course' },
+    { name: 'Beverages' },
+    { name: 'Desserts' }
 ];
 
 // App State
@@ -20,46 +16,128 @@ let state = {
     categories: [],
     menu: [],
     orders: [],
-    passcode: '1234',
+    passcode: '1234', // We still keep passcode in localStorage for simplicity as it's just for the local admin
     currentCustomer: { name: '', table: '' },
     cart: [],
     activeCategory: ''
 };
 
-// LocalStorage Helpers
+// LocalStorage Helpers (Only for passcode and local terminal settings now)
 const storage = {
     save: (key, data) => localStorage.setItem(`qr_menu_${key}`, JSON.stringify(data)),
     load: (key) => JSON.parse(localStorage.getItem(`qr_menu_${key}`)),
-    clear: () => {
-        ['categories', 'menu', 'orders', 'passcode'].forEach(key => localStorage.removeItem(`qr_menu_${key}`));
-    }
+    clear: () => localStorage.removeItem(`qr_menu_passcode`)
 };
 
 // Initialize App
-function initApp() {
-    // Load state from local storage or set defaults
-    state.categories = storage.load('categories') || defaultCategories;
-    state.menu = storage.load('menu') || defaultMenu;
-    state.orders = storage.load('orders') || [];
+async function initApp() {
     state.passcode = storage.load('passcode') || '1234';
     
-    // Save defaults if not present to ensure they persist
-    storage.save('categories', state.categories);
-    storage.save('menu', state.menu);
-    storage.save('passcode', state.passcode);
-    storage.save('orders', state.orders);
+    // Show a loading state while fetching from DB
+    document.getElementById('landing-view').innerHTML = '<div style="text-align:center; padding: 5rem;"><h2>Loading Menu...</h2></div>';
+    document.getElementById('landing-view').classList.add('active');
 
-    if(state.categories.length > 0) {
-        state.activeCategory = state.categories[0].id;
-    }
+    await fetchAllData();
+    setupRealtimeSubscription();
+
+    // Re-render landing view form
+    document.getElementById('landing-view').innerHTML = `
+        <div class="landing-content">
+            <div class="logo-container">
+                <i class="fa-solid fa-utensils logo-icon"></i>
+                <h1>BiteStyle</h1>
+                <p>Scan, Order, Enjoy.</p>
+            </div>
+            <form id="login-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <input type="number" id="table-num" placeholder="Table Number" required min="1">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="customer-name" placeholder="Your Name" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">View Menu</button>
+            </form>
+        </div>
+    `;
 
     setupEventListeners();
-    showView('landing-view');
 }
 
-// Custom ID Generator
-function generateId(prefix) {
-    return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+// --- Database Operations ---
+
+async function fetchAllData() {
+    try {
+        const [catsRes, menuRes, ordersRes] = await Promise.all([
+            supabase.from('categories').select('*').order('created_at', { ascending: true }),
+            supabase.from('menu').select('*'),
+            supabase.from('orders').select(`*, order_items(*)`).order('created_at', { ascending: false })
+        ]);
+
+        if (catsRes.error) throw catsRes.error;
+        if (menuRes.error) throw menuRes.error;
+        if (ordersRes.error) throw ordersRes.error;
+
+        state.categories = catsRes.data || [];
+        state.menu = menuRes.data || [];
+        
+        // Transform orders to match old structure
+        state.orders = (ordersRes.data || []).map(o => ({
+            id: o.id,
+            table: o.table_number,
+            customerName: o.customer_name,
+            total: o.total_price,
+            status: o.status,
+            timestamp: o.created_at,
+            items: o.order_items.map(item => ({
+                name: item.menu_item_name,
+                price: item.price,
+                qty: item.quantity
+            }))
+        }));
+
+        if(state.categories.length > 0) {
+            state.activeCategory = state.categories[0].id;
+        }
+
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        alert("Could not connect to database. Please check console.");
+    }
+}
+
+function setupRealtimeSubscription() {
+    // Listen to changes on the orders table
+    supabase
+        .channel('public:orders')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async payload => {
+            // Re-fetch all data to keep it simple, or specifically fetch the new order.
+            // For robust simplicity, we'll re-fetch just the orders
+            console.log('Realtime update received:', payload);
+            
+            const ordersRes = await supabase.from('orders').select(`*, order_items(*)`).order('created_at', { ascending: false });
+            if(!ordersRes.error) {
+                state.orders = ordersRes.data.map(o => ({
+                    id: o.id,
+                    table: o.table_number,
+                    customerName: o.customer_name,
+                    total: o.total_price,
+                    status: o.status,
+                    timestamp: o.created_at,
+                    items: o.order_items.map(item => ({
+                        name: item.menu_item_name,
+                        price: item.price,
+                        qty: item.quantity
+                    }))
+                }));
+                // If admin is looking at orders, refresh it
+                if(document.getElementById('admin-dashboard-view').classList.contains('active') && document.getElementById('tab-orders').classList.contains('active')) {
+                    renderAdminOrders();
+                }
+            }
+        })
+        .subscribe();
 }
 
 // ------ DOM Elements ------
@@ -74,13 +152,13 @@ function showView(viewId) {
     // Hide FAB in Admin panel
     if(viewId === 'admin-dashboard-view') {
         adminFab.style.display = 'none';
+        renderAdminDashboard('orders'); // default tab
     } else {
         adminFab.style.display = 'flex';
     }
     
     // Trigger specific view renders
     if(viewId === 'menu-view') renderCustomerMenu();
-    if(viewId === 'admin-dashboard-view') renderAdminDashboard('orders');
 }
 
 // ------ Event Listeners ------
@@ -181,7 +259,7 @@ function renderCustomerMenu() {
 
     // Render Items
     container.innerHTML = '';
-    const filteredMenu = state.menu.filter(item => item.category === state.activeCategory);
+    const filteredMenu = state.menu.filter(item => item.category_id === state.activeCategory);
     
     if(filteredMenu.length === 0) {
         container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">No items in this category yet.</p>`;
@@ -195,7 +273,7 @@ function renderCustomerMenu() {
         card.className = 'menu-item-card';
         card.innerHTML = `
             <div class="item-img-wrapper">
-                <img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                <img src="${item.image_url}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
             </div>
             <div class="item-content">
                 <div class="item-name">${item.name}</div>
@@ -285,7 +363,7 @@ function renderCart() {
         
         container.innerHTML += `
             <div class="cart-item">
-                <img src="${item.image}" alt="${item.name}" class="cart-item-img" onerror="this.src='https://via.placeholder.com/60?text=Img'">
+                <img src="${item.image_url}" alt="${item.name}" class="cart-item-img" onerror="this.src='https://via.placeholder.com/60?text=Img'">
                 <div class="cart-item-info">
                     <div class="cart-item-name">${item.name}</div>
                     <div class="cart-item-price">$${item.price.toFixed(2)}</div>
@@ -302,30 +380,65 @@ function renderCart() {
     totalEl.textContent = `$${total.toFixed(2)}`;
 }
 
-function placeOrder() {
+async function placeOrder() {
     if(state.cart.length === 0) return;
+
+    const checkoutBtn = document.getElementById('checkout-btn');
+    checkoutBtn.textContent = "Placing...";
+    checkoutBtn.disabled = true;
 
     const total = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     
-    const newOrder = {
-        id: generateId('ORD'),
-        customerName: state.currentCustomer.name,
-        table: state.currentCustomer.table,
-        items: [...state.cart],
-        total: total,
-        status: 'pending', // pending, preparing, ready, completed
-        timestamp: new Date().toISOString()
-    };
+    try {
+        // 1. Insert Order
+        const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .insert([{
+                table_number: state.currentCustomer.table,
+                customer_name: state.currentCustomer.name,
+                total_price: total,
+                status: 'pending'
+            }])
+            .select();
 
-    state.orders.unshift(newOrder); // Add to beginning
-    storage.save('orders', state.orders);
-    
-    closeCart();
-    showConfirmation(newOrder);
+        if(orderError) throw orderError;
+        const newOrderId = orderData[0].id;
+
+        // 2. Insert Order Items
+        const orderItemsToInsert = state.cart.map(item => ({
+            order_id: newOrderId,
+            menu_item_name: item.name,
+            price: item.price,
+            quantity: item.qty
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItemsToInsert);
+
+        if(itemsError) throw itemsError;
+
+        // Order successful, format for confirmation view
+        const orderObj = {
+            id: newOrderId,
+            total: total,
+            items: state.cart.map(i => ({ name: i.name, qty: i.qty, price: i.price }))
+        };
+        
+        closeCart();
+        showConfirmation(orderObj);
+
+    } catch(err) {
+        console.error("Order failed", err);
+        alert("Failed to place order. Please try again.");
+    } finally {
+        checkoutBtn.textContent = "Place Order";
+        checkoutBtn.disabled = false;
+    }
 }
 
 function showConfirmation(order) {
-    document.getElementById('confirm-order-id').textContent = `#${order.id.split('-')[1].toUpperCase()}`;
+    document.getElementById('confirm-order-id').textContent = `#${order.id.split('-')[0].toUpperCase()}`; // Show short part of UUID
     
     const list = document.getElementById('confirm-items-list');
     list.innerHTML = '';
@@ -346,7 +459,6 @@ function showConfirmation(order) {
 // ------ Admin Flow Logic ------
 
 function renderAdminDashboard(tabId) {
-    // Hide all tabs
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(`tab-${tabId}`).classList.add('active');
 
@@ -371,7 +483,6 @@ function renderAdminOrders() {
         
         let itemsHtml = order.items.map(i => `<li><span>${i.qty}x ${i.name}</span><span>$${(i.price * i.qty).toFixed(2)}</span></li>`).join('');
         
-        // Status Colors mapping inside mapping HTML string:
         const sColors = {
             'pending': 'var(--warning)',
             'preparing': 'var(--secondary)',
@@ -409,12 +520,20 @@ function renderAdminOrders() {
     });
 }
 
-window.updateOrderStatus = function(orderId, newStatus) {
-    const orderIndex = state.orders.findIndex(o => o.id === orderId);
-    if(orderIndex > -1) {
-        state.orders[orderIndex].status = newStatus;
-        storage.save('orders', state.orders);
-        renderAdminOrders();
+window.updateOrderStatus = async function(orderId, newStatus) {
+    try {
+        const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+        if(error) throw error;
+        
+        // Optimistic update locally
+        const orderIndex = state.orders.findIndex(o => o.id === orderId);
+        if(orderIndex > -1) {
+            state.orders[orderIndex].status = newStatus;
+            renderAdminOrders();
+        }
+    } catch(err) {
+        console.error("Failed to update status", err);
+        alert("Failed to update status.");
     }
 };
 
@@ -423,12 +542,12 @@ function renderAdminMenu() {
     tbody.innerHTML = '';
     
     state.menu.forEach(item => {
-        const cat = state.categories.find(c => c.id === item.category);
+        const cat = state.categories.find(c => c.id === item.category_id);
         const catName = cat ? cat.name : 'Unknown';
         
         tbody.innerHTML += `
             <tr>
-                <td><img src="${item.image}" alt="img" class="table-img" onerror="this.src='https://via.placeholder.com/50'"></td>
+                <td><img src="${item.image_url}" alt="img" class="table-img" onerror="this.src='https://via.placeholder.com/50'"></td>
                 <td><strong>${item.name}</strong></td>
                 <td><span class="status-badge" style="background-color: var(--gray);">${catName}</span></td>
                 <td>$${item.price.toFixed(2)}</td>
@@ -442,7 +561,6 @@ function renderAdminMenu() {
         `;
     });
 
-    // Populate Category Dropdown for modal
     const catSelect = document.getElementById('item-category');
     catSelect.innerHTML = state.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 }
@@ -452,7 +570,7 @@ function renderAdminCategories() {
     tbody.innerHTML = '';
     
     state.categories.forEach(cat => {
-        const itemsCount = state.menu.filter(m => m.category === cat.id).length;
+        const itemsCount = state.menu.filter(m => m.category_id === cat.id).length;
         tbody.innerHTML += `
             <tr>
                 <td><strong>${cat.name}</strong> <span style="color:var(--gray); font-size:0.8rem; margin-left: 10px;">(${itemsCount} items)</span></td>
@@ -468,10 +586,11 @@ function renderAdminCategories() {
 }
 
 function setupAdminActions() {
-    // Orders Refresh
-    document.getElementById('refresh-orders').addEventListener('click', renderAdminOrders);
+    document.getElementById('refresh-orders').addEventListener('click', async () => {
+        await fetchAllData();
+        renderAdminDashboard('orders');
+    });
 
-    // Settings
     document.getElementById('change-passcode-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const oldP = document.getElementById('old-passcode').value;
@@ -488,14 +607,11 @@ function setupAdminActions() {
         }
     });
 
+    // Reset Data logic removed or simplified as it's dangerous on prod db. Let's just alert.
     document.getElementById('reset-data-btn').addEventListener('click', () => {
-        if(confirm('WARNING: This will delete ALL menus, categories, and orders. Are you absolutely sure?')) {
-            storage.clear();
-            location.reload();
-        }
+         alert('Factory Reset is disabled for live databases to prevent accidental data loss. Please clear tables manually in Supabase dashboard.');
     });
 
-    // Modals Close
     document.getElementById('close-item-modal').addEventListener('click', () => {
         document.getElementById('item-modal').classList.remove('show');
     });
@@ -504,7 +620,6 @@ function setupAdminActions() {
         document.getElementById('category-modal').classList.remove('show');
     });
 
-    // Add Item Flow
     document.getElementById('add-item-btn').addEventListener('click', () => {
         if(state.categories.length === 0) return alert('Please add a category first!');
         
@@ -515,7 +630,6 @@ function setupAdminActions() {
         document.getElementById('item-modal').classList.add('show');
     });
     
-    // Auto preview image URL
     document.getElementById('item-image').addEventListener('input', (e) => {
         const preview = document.getElementById('item-image-preview');
         if(e.target.value) {
@@ -526,32 +640,37 @@ function setupAdminActions() {
         }
     });
 
-    // Save Item
-    document.getElementById('item-form').addEventListener('submit', (e) => {
+    document.getElementById('item-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const btn = Array.from(e.target.elements).find(el => el.type === 'submit');
+        btn.disabled = true;
+
         const id = document.getElementById('item-id').value;
-        
-        const newItem = {
-            id: id || generateId('item'),
+        const payload = {
             name: document.getElementById('item-name').value,
-            category: document.getElementById('item-category').value,
+            category_id: document.getElementById('item-category').value,
             price: parseFloat(document.getElementById('item-price').value),
-            image: document.getElementById('item-image').value
+            image_url: document.getElementById('item-image').value
         };
 
-        if(id) {
-            const index = state.menu.findIndex(m => m.id === id);
-            if(index > -1) state.menu[index] = newItem;
-        } else {
-            state.menu.push(newItem);
+        try {
+            if(id) {
+                await supabase.from('menu').update(payload).eq('id', id);
+            } else {
+                await supabase.from('menu').insert([payload]);
+            }
+            // Refresh data
+            await fetchAllData();
+            document.getElementById('item-modal').classList.remove('show');
+            renderAdminMenu();
+        } catch(err) {
+            console.error("Save item err", err);
+            alert("Failed to save item.");
+        } finally {
+            btn.disabled = false;
         }
-
-        storage.save('menu', state.menu);
-        document.getElementById('item-modal').classList.remove('show');
-        renderAdminMenu();
     });
 
-    // Add Category Flow
     document.getElementById('add-category-btn').addEventListener('click', () => {
         document.getElementById('category-form').reset();
         document.getElementById('category-old-name').value = '';
@@ -559,27 +678,30 @@ function setupAdminActions() {
         document.getElementById('category-modal').classList.add('show');
     });
 
-    document.getElementById('category-form').addEventListener('submit', (e) => {
+    document.getElementById('category-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const btn = Array.from(e.target.elements).find(el => el.type === 'submit');
         const name = document.getElementById('category-name').value;
         const oldId = document.getElementById('category-old-name').value;
         
         if(!name.trim()) return;
+        btn.disabled = true;
 
-        if(oldId) {
-            const index = state.categories.findIndex(c => c.id === oldId);
-            if(index > -1) state.categories[index].name = name;
-        } else {
-            state.categories.push({ id: generateId('cat'), name: name });
-        }
-        
-        storage.save('categories', state.categories);
-        document.getElementById('category-modal').classList.remove('show');
-        renderAdminCategories();
-        
-        // Ensure active category is valid
-        if(!state.activeCategory && state.categories.length > 0) {
-            state.activeCategory = state.categories[0].id;
+        try {
+            if(oldId) {
+                await supabase.from('categories').update({ name }).eq('id', oldId);
+            } else {
+                await supabase.from('categories').insert([{ name }]);
+            }
+            
+            await fetchAllData();
+            document.getElementById('category-modal').classList.remove('show');
+            renderAdminCategories();
+        } catch(err) {
+            console.error("Category save error", err);
+            alert("Failed to save category.");
+        } finally {
+            btn.disabled = false;
         }
     });
 }
@@ -591,28 +713,31 @@ window.editItem = function(id) {
     document.getElementById('item-modal-title').textContent = 'Edit Menu Item';
     document.getElementById('item-id').value = item.id;
     document.getElementById('item-name').value = item.name;
-    document.getElementById('item-category').value = item.category;
+    document.getElementById('item-category').value = item.category_id;
     document.getElementById('item-price').value = item.price;
-    document.getElementById('item-image').value = item.image;
+    document.getElementById('item-image').value = item.image_url || '';
     
     const preview = document.getElementById('item-image-preview');
-    preview.src = item.image;
-    preview.style.display = 'block';
+    if(item.image_url) {
+        preview.src = item.image_url;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
     
     document.getElementById('item-modal').classList.add('show');
 };
 
-window.deleteItem = function(id) {
+window.deleteItem = async function(id) {
     if(confirm('Are you sure you want to delete this menu item?')) {
-        state.menu = state.menu.filter(m => m.id !== id);
-        
-        // Also remove from active carts across app if needed, 
-        // though static app logic means it's simpler
-        state.cart = state.cart.filter(c => c.id !== id);
-        
-        storage.save('menu', state.menu);
-        renderAdminMenu();
-        if(views[1].classList.contains('active')) renderCustomerMenu();
+        try {
+            await supabase.from('menu').delete().eq('id', id);
+            await fetchAllData();
+            renderAdminMenu();
+            if(views[1].classList.contains('active')) renderCustomerMenu();
+        } catch(err) {
+            alert('Failed to delete item.');
+        }
     }
 };
 
@@ -627,20 +752,25 @@ window.editCategory = function(id) {
     document.getElementById('category-modal').classList.add('show');
 };
 
-window.deleteCategory = function(id) {
-    const itemInCat = state.menu.some(m => m.category === id);
+window.deleteCategory = async function(id) {
+    const itemInCat = state.menu.some(m => m.category_id === id);
     if(itemInCat) {
         alert('Cannot delete category. It contains menu items. Delete the items first.');
         return;
     }
 
     if(confirm('Are you sure you want to delete this category?')) {
-        state.categories = state.categories.filter(c => c.id !== id);
-        if(state.activeCategory === id) {
-            state.activeCategory = state.categories.length > 0 ? state.categories[0].id : '';
+        try {
+            await supabase.from('categories').delete().eq('id', id);
+            await fetchAllData();
+            
+            if(state.activeCategory === id) {
+                state.activeCategory = state.categories.length > 0 ? state.categories[0].id : '';
+            }
+            renderAdminCategories();
+        } catch(err) {
+            alert('Failed to delete category');
         }
-        storage.save('categories', state.categories);
-        renderAdminCategories();
     }
 };
 

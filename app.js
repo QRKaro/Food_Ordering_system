@@ -99,7 +99,7 @@ async function fetchAllData() {
             }))
         }));
 
-        if (state.categories.length > 0) {
+        if (state.categories.length > 0 && !state.activeCategory) {
             state.activeCategory = state.categories[0].id;
         }
         return true;
@@ -196,11 +196,18 @@ function setupEventListeners() {
         showView('landing-view');
     });
 
-    // Search functionality
-    document.getElementById('menu-search').addEventListener('input', (e) => {
-        state.searchQuery = e.target.value.toLowerCase().trim();
+    // Search functionality - Robust listener for mobile
+    const searchInput = document.getElementById('menu-search');
+    const handleSearch = (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        if (state.searchQuery === val) return; // Skip if no change
+        state.searchQuery = val;
         renderCustomerMenu();
-    });
+    };
+
+    searchInput.addEventListener('input', handleSearch);
+    searchInput.addEventListener('change', handleSearch);
+    searchInput.addEventListener('keyup', handleSearch);
 
     // Cart Navigation
     document.getElementById('cart-btn').addEventListener('click', openCart);
@@ -272,10 +279,14 @@ function renderCustomerMenu() {
     nav.innerHTML = '';
     state.categories.forEach(cat => {
         const btn = document.createElement('button');
-        btn.className = `category-chip ${state.activeCategory === cat.id ? 'active' : ''}`;
+        // When searching, chips are visually inactive if they don't match the search context
+        const isActive = !state.searchQuery && state.activeCategory === cat.id;
+        btn.className = `category-chip ${isActive ? 'active' : ''}`;
         btn.textContent = cat.name;
         btn.onclick = () => {
             state.activeCategory = cat.id;
+            state.searchQuery = ''; // Clear search when category clicked
+            document.getElementById('menu-search').value = '';
             renderCustomerMenu();
         };
         nav.appendChild(btn);

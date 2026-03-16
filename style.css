@@ -266,6 +266,41 @@ p { color: var(--gray-dark); line-height: 1.6; }
     box-shadow: 0 4px 10px rgba(255, 90, 95, 0.3);
 }
 
+.search-container {
+    padding: 1rem 1.5rem 0.5rem 1.5rem;
+    background-color: var(--surface);
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-box i {
+    position: absolute;
+    left: 16px;
+    color: var(--gray);
+    font-size: 1rem;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    border: 1px solid var(--gray-light);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    background-color: var(--bg-color);
+    transition: var(--transition);
+    outline: none;
+}
+
+.search-box input:focus {
+    border-color: var(--primary);
+    background-color: var(--surface);
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
 .menu-container {
     padding: 1.5rem;
     padding-bottom: 80px; /* space for fab */

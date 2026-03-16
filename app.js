@@ -20,7 +20,8 @@ let state = {
     passcode: '1234',
     currentCustomer: { name: '', table: '' },
     cart: [],
-    activeCategory: ''
+    activeCategory: '',
+    searchQuery: ''
 };
 
 // LocalStorage Helpers (Only for passcode now)
@@ -195,6 +196,12 @@ function setupEventListeners() {
         showView('landing-view');
     });
 
+    // Search functionality
+    document.getElementById('menu-search').addEventListener('input', (e) => {
+        state.searchQuery = e.target.value.toLowerCase().trim();
+        renderCustomerMenu();
+    });
+
     // Cart Navigation
     document.getElementById('cart-btn').addEventListener('click', openCart);
     document.getElementById('close-cart').addEventListener('click', closeCart);
@@ -275,10 +282,22 @@ function renderCustomerMenu() {
     });
 
     container.innerHTML = '';
-    const filteredMenu = state.menu.filter(item => item.category_id === state.activeCategory);
+
+    let filteredMenu = [];
+    if (state.searchQuery) {
+        // Search across all items
+        filteredMenu = state.menu.filter(item => 
+            item.name.toLowerCase().includes(state.searchQuery)
+        );
+    } else {
+        // Filter by active category
+        filteredMenu = state.menu.filter(item => item.category_id === state.activeCategory);
+    }
 
     if (filteredMenu.length === 0) {
-        container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">No items in this category yet.</p>';
+        container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">
+            ${state.searchQuery ? `No items found matching "${state.searchQuery}"` : 'No items in this category yet.'}
+        </p>`;
         return;
     }
 

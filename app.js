@@ -24,7 +24,7 @@ let state = {
     searchQuery: ''
 };
 
-// LocalStorage Helpers (Only for passcode now)
+// LocalStorage Helpers (No longer used for passcode)
 const storage = {
     save: (key, data) => localStorage.setItem(`qr_menu_${key}`, JSON.stringify(data)),
     load: (key) => JSON.parse(localStorage.getItem(`qr_menu_${key}`))
@@ -32,7 +32,7 @@ const storage = {
 
 // Initialize App
 async function initApp() {
-    state.passcode = storage.load('passcode') || '1234';
+    // Passcode will be fetched from Supabase during fetchAllData
 
     // Wait for Supabase CDN to be ready
     let retries = 0;
@@ -98,6 +98,19 @@ async function fetchAllData() {
                 qty: item.quantity
             }))
         }));
+
+        // Fetch settings (passcode)
+        const { data: settingsData, error: settingsError } = await db.from('settings').select('*');
+        if (!settingsError && settingsData) {
+            const passcodeSetting = settingsData.find(s => s.key === 'admin_passcode');
+            if (passcodeSetting) {
+                state.passcode = passcodeSetting.value;
+            } else {
+                // If not found, seed it
+                await db.from('settings').insert({ key: 'admin_passcode', value: '1234' });
+                state.passcode = '1234';
+            }
+        }
 
         if (state.categories.length > 0 && !state.activeCategory) {
             state.activeCategory = state.categories[0].id;
@@ -630,17 +643,25 @@ function setupAdminActions() {
         renderAdminDashboard('orders');
     });
 
-    document.getElementById('change-passcode-form').addEventListener('submit', (e) => {
+    document.getElementById('change-passcode-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const oldP = document.getElementById('old-passcode').value;
         const newP = document.getElementById('new-passcode').value;
 
         if (oldP === state.passcode) {
             if (newP.length < 4) return alert('Passcode must be at least 4 characters.');
-            state.passcode = newP;
-            storage.save('passcode', state.passcode);
-            alert('Passcode updated successfully!');
-            e.target.reset();
+            
+            try {
+                const { error } = await db.from('settings').update({ value: newP }).eq('key', 'admin_passcode');
+                if (error) throw error;
+                
+                state.passcode = newP;
+                alert('Passcode updated successfully in database!');
+                e.target.reset();
+            } catch (err) {
+                console.error('Failed to update passcode', err);
+                alert('Failed to update passcode in database.');
+            }
         } else {
             alert('Incorrect current passcode.');
         }

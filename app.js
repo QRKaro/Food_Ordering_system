@@ -267,6 +267,10 @@ function setupEventListeners() {
         document.getElementById('admin-sidebar').classList.toggle('open');
     });
 
+    document.getElementById('close-admin-sidebar').addEventListener('click', () => {
+        document.getElementById('admin-sidebar').classList.remove('open');
+    });
+
     setupAdminActions();
 }
 

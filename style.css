@@ -564,6 +564,19 @@ p { color: var(--gray-dark); line-height: 1.6; }
     flex-direction: column;
     padding: 1.5rem;
     transition: transform 0.3s ease;
+    position: relative;
+}
+
+.sidebar-close-btn {
+    display: none;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
 }
 
 .admin-logo {
@@ -722,6 +735,10 @@ p { color: var(--gray-dark); line-height: 1.6; }
     .admin-sidebar.open { transform: translateX(250px); }
     .admin-mobile-header { display: flex; }
     .admin-content { padding: 1rem; }
+
+    .sidebar-close-btn {
+        display: block;
+    }
 
     /* Fix table padding for mobile */
     .admin-table th, .admin-table td {

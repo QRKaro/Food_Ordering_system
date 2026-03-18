@@ -335,6 +335,9 @@ function renderCustomerMenu() {
         const card = document.createElement('div');
         card.className = 'menu-item-card';
         card.innerHTML = `
+            <div class="item-img-wrapper">
+                <img src="${item.image_url || 'https://via.placeholder.com/300?text=No+Image'}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+            </div>
             <div class="item-content">
                 <div class="item-name">${item.name}</div>
                 <div class="item-price">$${Number(item.price).toFixed(2)}</div>
@@ -421,6 +424,7 @@ function renderCart() {
 
         container.innerHTML += `
             <div class="cart-item">
+                <img src="${item.image_url || 'https://via.placeholder.com/60?text=Img'}" alt="${item.name}" class="cart-item-img" onerror="this.src='https://via.placeholder.com/60?text=Img'">
                 <div class="cart-item-info">
                     <div class="cart-item-name">${item.name}</div>
                     <div class="cart-item-price">$${Number(item.price).toFixed(2)}</div>
@@ -600,6 +604,7 @@ function renderAdminMenu() {
 
         tbody.innerHTML += `
             <tr>
+                <td><img src="${item.image_url || 'https://via.placeholder.com/50'}" alt="img" class="table-img" onerror="this.src='https://via.placeholder.com/50'"></td>
                 <td><strong>${item.name}</strong></td>
                 <td><span class="status-badge" style="background-color: var(--gray);">${catName}</span></td>
                 <td>$${Number(item.price).toFixed(2)}</td>
@@ -684,11 +689,21 @@ function setupAdminActions() {
 
         document.getElementById('item-form').reset();
         document.getElementById('item-id').value = '';
+        document.getElementById('item-image-preview-container').style.display = 'none';
         document.getElementById('item-modal-title').textContent = 'Add Menu Item';
         document.getElementById('item-modal').classList.add('show');
     });
 
-    // Removed item-image listener
+    document.getElementById('item-image').addEventListener('input', (e) => {
+        const previewCont = document.getElementById('item-image-preview-container');
+        const previewImg = document.getElementById('item-image-preview');
+        if (e.target.value) {
+            previewImg.src = e.target.value;
+            previewCont.style.display = 'block';
+        } else {
+            previewCont.style.display = 'none';
+        }
+    });
 
     document.getElementById('item-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -699,7 +714,8 @@ function setupAdminActions() {
         const payload = {
             name: document.getElementById('item-name').value,
             category_id: document.getElementById('item-category').value,
-            price: parseFloat(document.getElementById('item-price').value)
+            price: parseFloat(document.getElementById('item-price').value),
+            image_url: document.getElementById('item-image').value
         };
 
         try {
@@ -763,6 +779,16 @@ window.editItem = function (id) {
     document.getElementById('item-name').value = item.name;
     document.getElementById('item-category').value = item.category_id;
     document.getElementById('item-price').value = item.price;
+    document.getElementById('item-image').value = item.image_url || '';
+
+    const previewCont = document.getElementById('item-image-preview-container');
+    const previewImg = document.getElementById('item-image-preview');
+    if (item.image_url) {
+        previewImg.src = item.image_url;
+        previewCont.style.display = 'block';
+    } else {
+        previewCont.style.display = 'none';
+    }
 
     document.getElementById('item-modal').classList.add('show');
 };

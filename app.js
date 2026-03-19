@@ -113,7 +113,7 @@ async function fetchAllData() {
         }
 
         if (state.categories.length > 0 && !state.activeCategory) {
-            state.activeCategory = state.categories[0].id;
+            state.activeCategory = null; // Default to "All"
         }
         return true;
     } catch (error) {
@@ -294,6 +294,20 @@ function renderCustomerMenu() {
     const container = document.getElementById('menu-items-container');
 
     nav.innerHTML = '';
+    
+    // Add "All" chip
+    const allBtn = document.createElement('button');
+    const isAllActive = !state.searchQuery && !state.activeCategory;
+    allBtn.className = `category-chip ${isAllActive ? 'active' : ''}`;
+    allBtn.textContent = 'All';
+    allBtn.onclick = () => {
+        state.activeCategory = null;
+        state.searchQuery = '';
+        document.getElementById('menu-search').value = '';
+        renderCustomerMenu();
+    };
+    nav.appendChild(allBtn);
+
     state.categories.forEach(cat => {
         const btn = document.createElement('button');
         // When searching, chips are visually inactive if they don't match the search context
@@ -317,9 +331,12 @@ function renderCustomerMenu() {
         filteredMenu = state.menu.filter(item => 
             item.name.toLowerCase().includes(state.searchQuery)
         );
-    } else {
+    } else if (state.activeCategory) {
         // Filter by active category
         filteredMenu = state.menu.filter(item => item.category_id === state.activeCategory);
+    } else {
+        // Show all if activeCategory is null (the "All" option)
+        filteredMenu = state.menu;
     }
 
     if (filteredMenu.length === 0) {

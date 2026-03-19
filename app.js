@@ -554,7 +554,9 @@ function renderAdminOrders() {
     }
 
     state.orders.forEach(order => {
-        const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateTimeStr = new Date(order.timestamp).toLocaleString([], { 
+            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+        });
 
         let itemsHtml = order.items.map(i => `<li><span>${i.qty}x ${i.name}</span><span>$${(i.price * i.qty).toFixed(2)}</span></li>`).join('');
 
@@ -573,7 +575,7 @@ function renderAdminOrders() {
                         <div class="order-customer">${order.customerName}</div>
                         <span class="order-table-badge">Table ${order.table}</span>
                     </div>
-                    <div class="order-time">${timeStr}</div>
+                    <div class="order-time">${dateTimeStr}</div>
                 </div>
                 <ul class="order-items-list" style="list-style:none; padding:0;">
                     ${itemsHtml}
@@ -589,6 +591,9 @@ function renderAdminOrders() {
                         <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Ready</option>
                         <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
                     </select>
+                    <button class="btn-delete" title="Delete Order" onclick="deleteOrder('${order.id}')">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             </div>
         `;
@@ -608,6 +613,25 @@ window.updateOrderStatus = async function (orderId, newStatus) {
     } catch (err) {
         console.error('Failed to update status', err);
         alert('Failed to update status.');
+    }
+};
+
+window.deleteOrder = async function (orderId) {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+    try {
+        // First delete order_items (to handle foreign key constraints)
+        const { error: itemsError } = await db.from('order_items').delete().eq('order_id', orderId);
+        if (itemsError) throw itemsError;
+
+        // Then delete the order itself
+        const { error: orderError } = await db.from('orders').delete().eq('id', orderId);
+        if (orderError) throw orderError;
+
+        await fetchAllData();
+        renderAdminOrders();
+    } catch (err) {
+        console.error('Delete failed', err);
+        alert('Failed to delete order. Please try again.');
     }
 };
 

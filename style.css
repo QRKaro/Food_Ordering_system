@@ -110,6 +110,25 @@ p { color: var(--gray-dark); line-height: 1.6; }
 .btn-sm { padding: 8px 16px; font-size: 0.875rem; }
 .btn-block { width: 100%; }
 
+.btn-delete {
+    background-color: #ffebee;
+    color: #f44336;
+    border: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+}
+
+.btn-delete:hover {
+    background-color: #f44336;
+    color: white;
+}
+
 .icon-btn {
     background: transparent;
     border: none;
